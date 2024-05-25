@@ -66,6 +66,18 @@ class BatchNorm(KL.BatchNormalization):
         """
         return super(self.__class__, self).call(inputs, training=training)
 
+class AnchorsLayer(KL.Layer):
+    def __init__(self, anchors, name="anchors", **kwargs):
+        super(AnchorsLayer, self).__init__(name=name, **kwargs)
+        self.anchors = tf.Variable(anchors)
+	    
+    def call(self, dummy):
+        return self.anchors
+    
+    def get_config(self):
+        config = super(AnchorsLayer, self).get_config()
+        return config
+
 
 def compute_backbone_shapes(config, image_shape):
     """Computes the width and height of each stage of the backbone network.
@@ -1931,16 +1943,6 @@ class MaskRCNN():
             anchors = np.broadcast_to(anchors, (config.BATCH_SIZE,) + anchors.shape)
             # A hack to get around Keras's bad support for constants
             #anchors = KL.Lambda(lambda x: tf.Variable(anchors), name="anchors")(input_image)
-	    class AnchorsLayer(KL.Layer):
-		def __init__(self, anchors, name="anchors", **kwargs):
-		    super(AnchorsLayer, self).__init__(name=name, **kwargs)
-		    self.anchors = tf.Variable(anchors)
-		    
-	        def call(self, dummy):
-		    return self.anchors
-		def get_config(self):
-		    config = super(AnchorsLayer, self).get_config()
-		    return config
 	    anchors = AnchorsLayer(anchors, name="anchors")(input_image)
         else:
             anchors = input_anchors
