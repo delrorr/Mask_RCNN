@@ -20,7 +20,8 @@ import tensorflow as tf
 import keras
 import keras.backend as K
 import keras.layers as KL
-import tensorflow.keras.models as KM
+import keras.engine as KE
+import keras.models as KM
 
 from mrcnn import utils
 
@@ -65,18 +66,6 @@ class BatchNorm(KL.BatchNormalization):
             True: (don't use). Set layer in training mode even when making inferences
         """
         return super(self.__class__, self).call(inputs, training=training)
-
-class AnchorsLayer(KL.Layer):
-    def __init__(self, anchors, name="anchors", **kwargs):
-        super(AnchorsLayer, self).__init__(name=name, **kwargs)
-        self.anchors = tf.Variable(anchors)
-	    
-    def call(self, dummy):
-        return self.anchors
-    
-    def get_config(self):
-        config = super(AnchorsLayer, self).get_config()
-        return config
 
 
 def compute_backbone_shapes(config, image_shape):
@@ -263,7 +252,7 @@ def clip_boxes_graph(boxes, window):
     return clipped
 
 
-class ProposalLayer(KL.Layer):
+class ProposalLayer(KE.Layer):
     """Receives anchor scores and selects a subset to pass as proposals
     to the second stage. Filtering is done based on anchor scores and
     non-max suppression to remove overlaps. It also applies bounding
@@ -352,7 +341,7 @@ def log2_graph(x):
     return tf.log(x) / tf.log(2.0)
 
 
-class PyramidROIAlign(KL.Layer):
+class PyramidROIAlign(KE.Layer):
     """Implements ROI Pooling on multiple levels of the feature pyramid.
 
     Params:
@@ -630,7 +619,7 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     return rois, roi_gt_class_ids, deltas, masks
 
 
-class DetectionTargetLayer(KL.Layer):
+class DetectionTargetLayer(KE.Layer):
     """Subsamples proposals and generates target box refinement, class_ids,
     and masks for each.
 
@@ -790,7 +779,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     return detections
 
 
-class DetectionLayer(KL.Layer):
+class DetectionLayer(KE.Layer):
     """Takes classified proposal boxes and their bounding box deltas and
     returns the final detection boxes.
 
@@ -1942,8 +1931,7 @@ class MaskRCNN():
             # TODO: can this be optimized to avoid duplicating the anchors?
             anchors = np.broadcast_to(anchors, (config.BATCH_SIZE,) + anchors.shape)
             # A hack to get around Keras's bad support for constants
-            #anchors = KL.Lambda(lambda x: tf.Variable(anchors), name="anchors")(input_image)
-	    anchors = AnchorsLayer(anchors, name="anchors")(input_image)
+            anchors = KL.Lambda(lambda x: tf.Variable(anchors), name="anchors")(input_image)
         else:
             anchors = input_anchors
 
